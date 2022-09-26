@@ -20,6 +20,8 @@ pip install -r requirements.txt
 
 This file will load the images and labels into numpy arrays ready to input into our model
 
+### Change the directory to the one in that contains the dataset folder
+
 ```
-pip install -r requirements.txt
+python data_loader.py
 ```
