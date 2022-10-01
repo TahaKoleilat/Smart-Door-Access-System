@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 
-class MaskDetectionModel(object):
+class MaskDetectionModel():
 
     MASK_STATE = ["MASK", "NO_MASK"]
 
@@ -27,7 +27,7 @@ model = MaskDetectionModel("model.json", "model_weights.h5")
 font = cv2.FONT_HERSHEY_SIMPLEX
 
 
-class VideoCamera(object):
+class VideoCamera():
     def __init__(self):
         self.video = cv2.VideoCapture(0)
 
