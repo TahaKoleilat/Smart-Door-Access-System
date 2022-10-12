@@ -1,74 +1,48 @@
-from keras.models import model_from_json
-import numpy as np
 import cv2
+import os
+import tensorflow
+from keras.utils import img_to_array
+from keras.models import load_model
+from keras.applications.mobilenet_v2 import preprocess_input
+import numpy as np
 
+cascPath = os.path.dirname(
+    cv2.__file__) + "/data/haarcascade_frontalface_alt2.xml"
+faceCascade = cv2.CascadeClassifier(cascPath)
+model = load_model("model_weights.h5")
 
-class MaskDetectionModel():
-
-    MASK_STATE = ["MASK", "NO_MASK"]
-
-    def __init__(self, model_json_file, model_weights_file):
-        # load model from JSON file
-        with open(model_json_file, "r") as json_file:
-            loaded_model_json = json_file.read()
-            self.loaded_model = model_from_json(loaded_model_json)
-
-        # load weights into the new model
-        self.loaded_model.load_weights(model_weights_file)
-
-    def predict_mask(self, img):
-        self.preds = self.loaded_model.predict(img)
-        return self.preds
-
-
-facec = cv2.CascadeClassifier(
-    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-model = MaskDetectionModel("model.json", "model_weights.h5")
-font = cv2.FONT_HERSHEY_SIMPLEX
-
-
-class VideoCamera():
-    def __init__(self):
-        self.video = cv2.VideoCapture(0)
-
-    def __del__(self):
-        self.video.release()
-
-    # returns camera frames along with bounding boxes and predictions
-    def get_frame(self):
-        ret, fr = self.video.read()
-        fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
-        faces = facec.detectMultiScale(fr, 1.3, 5)
-
-        for (x, y, w, h) in faces:
-            fc = fr[y:y+h, x:x+w]
-
-            roi = cv2.resize(fc, (128, 128), interpolation=cv2.INTER_AREA)
-            pred = model.predict_mask(roi[np.newaxis, :, :, ])
-            if (pred >= 0.5):
-                cv2.putText(
-                    fr, MaskDetectionModel.MASK_STATE[1], (x, y), font, 1, (255, 255, 0), 2)
-            else:
-                cv2.putText(
-                    fr, MaskDetectionModel.MASK_STATE[0], (x, y), font, 1, (255, 255, 0), 2)
-            cv2.rectangle(fr, (x, y), (x+w, y+h), (255, 0, 0), 2)
-
-        if ret == True:
-            cv2.imshow('Frame', fr)
-
-        if cv2.waitKey(1) == ord('q'):
-            self.video.release()
-            cv2.destroyAllWindows()
-
-        _, jpeg = cv2.imencode('.jpg', fr)
-        return jpeg.tobytes()
-
-
-def main():
-    p1 = VideoCamera()
-    while True:
-        p1.get_frame()
-
-
-if __name__ == "__main__":
-    main()
+video_capture = cv2.VideoCapture(0)
+while True:
+    # Capture frame-by-frame
+    ret, frame = video_capture.read()
+    colorRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    faces = faceCascade.detectMultiScale(colorRGB,
+                                         scaleFactor=1.1,
+                                         minNeighbors=5,
+                                         minSize=(60, 60),
+                                         flags=cv2.CASCADE_SCALE_IMAGE)
+    faces_list = []
+    preds = []
+    for (x, y, w, h) in faces:
+        face_frame = frame[y:y+h, x:x+w]
+        face_frame = cv2.cvtColor(face_frame, cv2.COLOR_BGR2RGB)
+        face_frame = cv2.resize(face_frame, (128, 128))
+        face_frame = img_to_array(face_frame)
+        face_frame = np.expand_dims(face_frame, axis=0)
+        face_frame = preprocess_input(face_frame)
+        faces_list.append(face_frame)
+        if len(faces_list) > 0:
+            for face in faces_list:
+                pred = model.predict(face)
+                label = "Mask" if pred >= 0.5 else "No Mask"
+                color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
+                label = "{}".format(label)
+                cv2.putText(frame, label, (x, y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        # Display the resulting frame
+    cv2.imshow('Video', frame)
+    if cv2.waitKey(2) & 0xFF == ord('q'):
+        break
+video_capture.release()
+cv2.destroyAllWindows()
