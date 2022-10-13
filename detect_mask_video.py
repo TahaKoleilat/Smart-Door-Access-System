@@ -26,7 +26,7 @@ while True:
     for (x, y, w, h) in faces:
         face_frame = frame[y:y+h, x:x+w]
         face_frame = cv2.cvtColor(face_frame, cv2.COLOR_BGR2RGB)
-        face_frame = cv2.resize(face_frame, (128, 128))
+        face_frame = cv2.resize(face_frame, (224, 224))
         face_frame = img_to_array(face_frame)
         face_frame = np.expand_dims(face_frame, axis=0)
         face_frame = preprocess_input(face_frame)
